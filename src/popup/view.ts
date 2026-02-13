@@ -1,4 +1,5 @@
 import { fitTextareaToContent } from "../lib/utils/fit-textarea-to-content";
+import { normalizeTagInputAfterComposition } from "../lib/utils/ime";
 import type { FullModel } from "./model";
 
 const $ = document.querySelector.bind(document);
@@ -37,6 +38,12 @@ export class View {
   }
 
   handleOutput({ onTitleChange, onLinkChange, onDescriptionChange, onAddTag, onRemoveTagByIndex, onSave }) {
+    let isTagInputComposing = false;
+    let tagInputValueBeforeComposition = "";
+
+    const isImeCompositionKeydown = (e: KeyboardEvent) =>
+      e.isComposing || isTagInputComposing || e.keyCode === 229 || e.key === "Process";
+
     formElement.addEventListener("submit", (event) => {
       event.preventDefault(); // don't reload page
 
@@ -50,8 +57,17 @@ export class View {
     linkInputElement.addEventListener("input", (e) => onLinkChange((e.target as HTMLInputElement).value));
     descriptionInputElement.addEventListener("input", (e) => onDescriptionChange((e.target as HTMLInputElement).value));
     addTagButtonElement.addEventListener("click", () => this.commitTag({ onAddTag, refocus: true }));
+    tagInputElement.addEventListener("compositionstart", () => {
+      isTagInputComposing = true;
+      tagInputValueBeforeComposition = tagInputElement.value;
+    });
+    tagInputElement.addEventListener("compositionend", () => {
+      isTagInputComposing = false;
+      tagInputElement.value = normalizeTagInputAfterComposition(tagInputElement.value, tagInputValueBeforeComposition);
+      tagInputValueBeforeComposition = "";
+    });
     tagInputElement.addEventListener("keydown", (e) => {
-      if (e.isComposing) {
+      if (isImeCompositionKeydown(e)) {
         // passthrough IME events
         return;
       }
