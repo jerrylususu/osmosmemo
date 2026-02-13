@@ -1,5 +1,5 @@
 import { fitTextareaToContent } from "../lib/utils/fit-textarea-to-content";
-import { normalizeTagInputAfterComposition } from "../lib/utils/ime";
+import { getCompositionSnapshot, resolveValueAtCompositionEnd, type CompositionSnapshot } from "../lib/utils/ime";
 import type { FullModel } from "./model";
 
 const $ = document.querySelector.bind(document);
@@ -39,7 +39,7 @@ export class View {
 
   handleOutput({ onTitleChange, onLinkChange, onDescriptionChange, onAddTag, onRemoveTagByIndex, onSave }) {
     let isTagInputComposing = false;
-    let tagInputValueBeforeComposition = "";
+    let tagInputCompositionSnapshot: CompositionSnapshot | null = null;
 
     const isImeCompositionKeydown = (e: KeyboardEvent) =>
       e.isComposing || isTagInputComposing || e.keyCode === 229 || e.key === "Process";
@@ -59,12 +59,16 @@ export class View {
     addTagButtonElement.addEventListener("click", () => this.commitTag({ onAddTag, refocus: true }));
     tagInputElement.addEventListener("compositionstart", () => {
       isTagInputComposing = true;
-      tagInputValueBeforeComposition = tagInputElement.value;
+      tagInputCompositionSnapshot = getCompositionSnapshot(tagInputElement);
     });
-    tagInputElement.addEventListener("compositionend", () => {
+    tagInputElement.addEventListener("compositionend", (e: CompositionEvent) => {
       isTagInputComposing = false;
-      tagInputElement.value = normalizeTagInputAfterComposition(tagInputElement.value, tagInputValueBeforeComposition);
-      tagInputValueBeforeComposition = "";
+      tagInputElement.value = resolveValueAtCompositionEnd({
+        currentValue: tagInputElement.value,
+        compositionData: e.data ?? "",
+        snapshot: tagInputCompositionSnapshot,
+      });
+      tagInputCompositionSnapshot = null;
     });
     tagInputElement.addEventListener("keydown", (e) => {
       if (isImeCompositionKeydown(e)) {

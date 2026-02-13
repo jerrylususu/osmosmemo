@@ -1,17 +1,49 @@
 import { deepStrictEqual } from "node:assert";
 import { describe, it } from "node:test";
-import { normalizeTagInputAfterComposition } from "../ime";
+import { resolveValueAtCompositionEnd } from "../ime";
 
-describe("normalizeTagInputAfterComposition", () => {
-  it("normalizes segmented + duplicated plain text produced by ime mode switching", () => {
-    deepStrictEqual(normalizeTagInputAfterComposition("r'e'a'dread", ""), "read");
+describe("resolveValueAtCompositionEnd", () => {
+  it("reconstructs value from pre-composition snapshot and composition data", () => {
+    deepStrictEqual(
+      resolveValueAtCompositionEnd({
+        currentValue: "r'e'a'dread",
+        compositionData: "read",
+        snapshot: { value: "", selectionStart: 0, selectionEnd: 0 },
+      }),
+      "read"
+    );
   });
 
-  it("normalizes segmented composition chunk", () => {
-    deepStrictEqual(normalizeTagInputAfterComposition("project-r'e'a'd", "project-"), "project-read");
+  it("replaces selected range captured at composition start", () => {
+    deepStrictEqual(
+      resolveValueAtCompositionEnd({
+        currentValue: "ignored",
+        compositionData: "tag",
+        snapshot: { value: "my-old-value", selectionStart: 3, selectionEnd: 6 },
+      }),
+      "my-tag-value"
+    );
   });
 
-  it("keeps unrelated values unchanged", () => {
-    deepStrictEqual(normalizeTagInputAfterComposition("project-read", "project-"), "project-read");
+  it("keeps current value when composition data is empty", () => {
+    deepStrictEqual(
+      resolveValueAtCompositionEnd({
+        currentValue: "project-read",
+        compositionData: "",
+        snapshot: { value: "project-", selectionStart: 8, selectionEnd: 8 },
+      }),
+      "project-read"
+    );
+  });
+
+  it("keeps current value when snapshot is missing", () => {
+    deepStrictEqual(
+      resolveValueAtCompositionEnd({
+        currentValue: "project-read",
+        compositionData: "read",
+        snapshot: null,
+      }),
+      "project-read"
+    );
   });
 });
